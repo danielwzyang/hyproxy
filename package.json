@@ -1,0 +1,9 @@
+{
+    "dependencies": {
+        "dotenv": "^17.2.1",
+        "minecraft-protocol": "^1.54.0"
+    },
+    "scripts": {
+        "proxy": "node proxy.js"
+    }
+}

@@ -1,12 +1,13 @@
 require("dotenv").config()
 
 if (!process.env.HYPIXEL_API_KEY) {
-    console.error("API key not found. Please follow these directions:\n\nVisit https://developer.hypixel.net/dashboard/apps and file a request to create an application for a long-term API key.\nYou can make up anything you want e.g. a discord stat bot (but do not mention this application as it is not allowed).\n\nIn the working directory create a file called '.env'.\nIn this file type: HYPIXEL_API_KEY=replace_this_part_with_your_key")
+    this.log("API key not found. Please follow these directions:\n\nVisit https://developer.hypixel.net/dashboard/apps and file a request to create an application for a long-term API key.\nYou can make up anything you want e.g. a discord stat bot (but do not mention this application as it is not allowed).\n\nIn the working directory create a file called '.env'.\nIn this file type: HYPIXEL_API_KEY=replace_this_part_with_your_key")
     process.exit()
 }
 
 const fs = require("fs")
-const config = require("yaml").parse(fs.readFileSync("./config.yml", "utf8"))
+const yaml = require("yaml")
+const config = yaml.parse(fs.readFileSync("./config.yml", "utf8"))
 
 const mc = require("minecraft-protocol")
 
@@ -23,15 +24,13 @@ class HyProxy {
             this.handleLogin()
         })
 
-        this.server.on("error", (err) => console.error("Proxy server error:", err))
+        this.server.on("error", (err) => this.log("Proxy server error:", err))
 
         this.log("Proxy server started.")
 
         this.statCache = new Map()
 
-        this.tag = config.tag?.trim() || ""
-        if (this.tag.length > 0)
-            this.tag = `${config.tag_color}[${this.tag}] `
+        config.tag = config.tag?.trim() || ""
     }
 
     log(message) {
@@ -39,7 +38,7 @@ class HyProxy {
     }
 
     handleLogin() {
-        this.log(`Client connected: ${this.client.username}`)
+        this.log(`Client connected to proxy: ${this.client.username}`)
 
         this.target = mc.createClient({
             host: "mc.hypixel.net",
@@ -52,6 +51,8 @@ class HyProxy {
             profilesFolder: config.cache_folder
         })
 
+        this.target.on("connect", () => this.log(`Client connected to target: ${this.target.username}`))
+
         this.client.on("packet", (data, meta) => {
             if (meta.name === "chat" && data.message)
                 if (data.message.startsWith("/") && this.handleCommand(data.message))
@@ -62,7 +63,7 @@ class HyProxy {
                 try {
                     this.target.write(meta.name, data)
                 } catch (err) {
-                    console.error(`Error forwarding client to server packet ${meta.name}:`, err)
+                    this.log(`Error forwarding client to server packet ${meta.name}:`, err)
                 }
             }
         })
@@ -72,18 +73,18 @@ class HyProxy {
                 try {
                     this.client.write(meta.name, data)
                 } catch (err) {
-                    console.error(`Error forwarding server to client packet ${meta.name}:`, err)
+                    this.log(`Error forwarding server to client packet ${meta.name}:`, err)
                 }
             }
         })
 
         this.client.on("error", (err) => {
-            console.error("Client error:", err)
+            this.log("Client error:", err)
             this.target.end()
         })
 
         this.target.on("error", (err) => {
-            console.error("this.target error:", err)
+            this.log("this.target error:", err)
             client.end()
         })
 
@@ -126,7 +127,7 @@ class HyProxy {
             if (config.auto_who && rawMessage.trim() === "to access powerful upgrades.")
                 this.target.write("chat", { message: "/who" })
         } catch (e) {
-            console.error("Error processing chat packet:", e)
+            this.log("Error processing chat packet:", e)
         }
     }
 
@@ -152,6 +153,70 @@ class HyProxy {
             return true
         }
 
+        // update_config command 
+        prefix = `/${config.commands.update_config}`
+        if (command.startsWith(prefix)) {
+            this.log("Config command was called.")
+
+            const args = command.slice(prefix.length).trim().split(/\s+/).filter(Boolean)
+
+            if (args.length < 2) {
+                this.proxyChat("§cPlease provide a config setting and a new value for it.")
+                return true
+            }
+
+            const [keyPath, ...tempValue] = args
+            const keys = keyPath.split(".")
+            const value = tempValue.join(" ")
+
+            let dummy = config
+
+            // recursively check if path is valid
+            for (let i = 0; i < keys.length - 1; i++) {
+                if (!(keys[i] in dummy)) {
+                    this.proxyChat(`§cInvalid config path: ${keys[i]} not found.`)
+                    return true
+                }
+
+                dummy = dummy[keys[i]]
+            }
+
+            const lastKey = keys[keys.length - 1]
+            if (!(lastKey in dummy)) {
+                this.proxyChat(`§cInvalid config key: ${lastKey}.`)
+                return true
+            }
+
+            const originalType = typeof dummy[lastKey]
+
+            let newValue
+            if (originalType === "number") {
+                newValue = Number(value)
+                if (isNaN(newValue)) {
+                    this.proxyChat(`§c${keyPath} must be a number value.`)
+                    return true
+                }
+            } else if (originalType === "boolean") {
+                if (value === "true") newValue = true
+                else if (value === "false") newValue = false
+                else {
+                    this.proxyChat(`§c${keyPath} must be a boolean value.`)
+                    return true
+                }
+            } else if (originalType === "string") {
+                newValue = value
+            } else {
+                this.proxyChat(`§c${keyPath} is an object.`)
+                return true
+            }
+
+            dummy[lastKey] = newValue
+
+            this.proxyChat(`§fUpdated in-memory config: ${keyPath} = ${newValue}.`)
+
+            return true
+        }
+
         return false
     }
 
@@ -160,7 +225,7 @@ class HyProxy {
         this.log(`<< ${message}`)
         this.client.write("chat", {
             message: JSON.stringify({
-                text: `§7${this.tag}${message}`,
+                text: `§7${config.show_tag ? `${config.tag_prefix}[${config.tag}] ` : ""}${message}`,
                 color: "white",
             }),
             position: 1,
@@ -247,7 +312,7 @@ class HyProxy {
             const data = await response.json()
             return { uuid: data.id, username: data.name }
         } catch (err) {
-            console.error("fetch error:", err)
+            this.log("fetch error:", err)
             return null
         }
     }
@@ -272,7 +337,7 @@ class HyProxy {
 
             return { stars, fkdr, rank }
         } catch (err) {
-            console.error("hypixel api error:", err)
+            this.log("hypixel api error:", err)
             return null
         }
     }
@@ -295,7 +360,7 @@ class HyProxy {
             this.getStats(uuid).then(stats => {
                 if (!stats) {
                     this.log(`Stats for ${name} not found.`)
-                    return this.proxyChat(`${config.name_color}${username}: §cNo stats found`)
+                    return this.proxyChat(`${config.name_prefix}${username}: §cNo stats found`)
                 }
 
                 this.log(`Stats for ${name} found. Adding to cache.`)

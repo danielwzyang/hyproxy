@@ -1,6 +1,7 @@
-tag: HYPROXY # will be printed with the statchecks - leave blank if you want it omitted
-tag_color: §d # the minecraft color code for the tag
-name_color: §f # the minecraft color code for names that show up in statcheck
+tag: HYPROXY # will be printed with the statchecks if show_tag is true
+show_tag: true
+tag_prefix: §d # the minecraft color/style codes for the tag
+name_prefix: §f # the minecraft color/style codes for names that show up in statcheck
 
 version: 1.8.9 # version of minecraft that the client is connecting with
 cache_folder: ./cache # the folder that will store the token for logging in to your microsoft account
@@ -14,6 +15,7 @@ fkdr_benchmarks: # the benchmarks that determine the color of a player's FKDR in
 
 commands: # the aliases for commands
   statcheck: sc
+  update_config: config # this command will only update the in-memory config - for indefinite changes edit the values in this file directly
 
 auto_who: true # enable automatically calling /who at the start of a game
 

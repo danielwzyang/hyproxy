@@ -389,7 +389,7 @@ class HyProxy {
                 const msg = this.formatStatsMessage(username, stats)
                 this.statCache.set(username, msg)
 
-                if (stats.fkdr >= config.filter_benchmarks.fkdr || stats.stars >= config.filter_benchmarks.stars)
+                if (Number(stats.fkdr) >= config.filter_benchmarks.fkdr || Number(stats.stars) >= config.filter_benchmarks.stars)
                     this.proxyChat(msg)
             })
         })

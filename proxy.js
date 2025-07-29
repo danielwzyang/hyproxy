@@ -16,7 +16,6 @@ class HyProxy {
             "online-mode": true,
             port: 25565,
             version: config.version,
-            hideErrors: true,
         })
 
         this.server.on("login", (client) => {
@@ -58,7 +57,22 @@ class HyProxy {
     }
 
     formatStatsMessage(username, stats) {
-        return `${config.name_color}${username}: ${this.getColoredStar(stats.stars)} §7| ${this.getColoredFKDR(stats.fkdr)} FKDR`
+        return `${this.getRankColor(stats.rank)}${username}: ${this.getColoredStar(stats.stars)} §7| ${this.getColoredFKDR(stats.fkdr)} FKDR`
+    }
+
+    getRankColor(rank) {
+        switch (rank) {
+            case "MVP_PLUS_PLUS":
+                return "§6";
+            case "MVP_PLUS":
+            case "MVP":
+                return "§b";
+            case "VIP_PLUS":
+            case "VIP":
+                return "§a";
+            default:
+                return "§7";
+        }
     }
 
     getColoredStar(starLevel) {
@@ -86,7 +100,7 @@ class HyProxy {
                 colored += `${rainbow[i + 1]}${str[i]}`
 
             colored += `✫${rainbow[str.length + 1]}]`
-            
+
             return colored
         }
 
@@ -114,7 +128,7 @@ class HyProxy {
         }
     }
 
-    async getBedwarsStats(uuid) {
+    async getStats(uuid) {
         try {
             const response = await fetch(`https://api.hypixel.net/v2/player?key=${process.env.HYPIXEL_API_KEY}&uuid=${uuid}`)
             if (!response.ok) return null
@@ -129,7 +143,10 @@ class HyProxy {
             const finalDeaths = bw.final_deaths_bedwars || 1
             const fkdr = (finalKills / finalDeaths).toFixed(2)
 
-            return { stars, fkdr }
+            const plusplus = data.player.monthlyPackageRank && data.player.monthlyPackageRank === "SUPERSTAR"
+            const rank = plusplus ? "MVP_PLUS_PLUS" : (data.player.packageRank || data.player.newPackageRank || "NONE")
+
+            return { stars, fkdr, rank }
         } catch (err) {
             console.error("hypixel api error:", err)
             return null
@@ -146,12 +163,12 @@ class HyProxy {
         this.getMojangUUID(name).then(data => {
             if (!data) {
                 console.log("No user found.")
-                return this.proxyChat(`${config.name_color}${name}: §cNo user found`)
+                return this.proxyChat(`§f${name}: §cNo user found`)
             }
 
             const { uuid, username } = data
 
-            this.getBedwarsStats(uuid).then(stats => {
+            this.getStats(uuid).then(stats => {
                 if (!stats) {
                     console.log("No stats found.")
                     return this.proxyChat(`${config.name_color}${username}: §cNo stats found`)

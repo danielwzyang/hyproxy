@@ -6,6 +6,10 @@ name_prefix: §f # the minecraft color/style codes for names that show up in sta
 version: 1.8.9 # version of minecraft that the client is connecting with
 cache_folder: ./cache # the folder that will store the token for logging in to your microsoft account
 
+auto_who: true # enable automatically calling /who at the start of a game
+
+filter_self: true # filter your own stats when statchecking after /who
+
 check_delay: 100 # the delay (in ms) between each stat check (to help prevent rate limiting)
 
 fkdr_benchmarks: # the benchmarks that determine the color of a player's FKDR in the stat messages
@@ -15,14 +19,11 @@ fkdr_benchmarks: # the benchmarks that determine the color of a player's FKDR in
 
 commands: # the aliases for commands
   statcheck: sc
-  update_config: config # this command will only update the in-memory config - for indefinite changes edit the values in this file directly
+  stat_filter: filter # this will hide certain names from showing up in /who statchecks similar to filter_self 
+  update_config: setconfig # this command will only update the in-memory config - for indefinite changes edit the values in this file directly
 
-auto_who: true # enable automatically calling /who at the start of a game
-
-ignore_self: true # ignore your own stats when statchecking after /who
-
-ignore_benchmarks: # the benchmarks that determine when a player's stats should be printed on the first /who
+filter_benchmarks: # the benchmarks that determine when a player's stats should be printed on the first /who
   fkdr: 3
   stars: 100
-# these benchmarks also apply to yourself if ignore_self is false
-# upon the second /who these benchmarks will be ignored and all players' stats will be printed (excluding yourself if ignore_self is true)
+# these benchmarks also apply to yourself if filter_self is false
+# upon the second /who these benchmarks will be ignored and all players' stats will be printed (excluding yourself if filter_self is true)

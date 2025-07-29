@@ -30,6 +30,8 @@ class HyProxy {
 
         this.statCache = new Map()
 
+        this.filterList = new Set()
+
         config.tag = config.tag?.trim() || ""
     }
 
@@ -115,7 +117,7 @@ class HyProxy {
                 let delay = 0
 
                 players.forEach((name) => {
-                    if (config.ignore_self && name === this.client.username) return
+                    if ((config.filter_self && name === this.client.username) || this.filterList.has(name)) return
 
                     setTimeout(() => this.statcheck(name), delay)
 
@@ -137,7 +139,7 @@ class HyProxy {
         if (command.startsWith(prefix)) {
             this.log("Statcheck command was called.")
 
-            const args = command.slice(prefix.length).trim().split(/\s+/).filter(Boolean)
+            const args = command.slice(prefix.length).trim().split(" ").filter(Boolean)
 
             if (args.length == 0) {
                 this.proxyChat("§cPlease provide at least one name to statcheck.")
@@ -153,12 +155,32 @@ class HyProxy {
             return true
         }
 
+        // filter command
+        prefix = `/${config.commands.stat_filter}`
+        if (command.startsWith(prefix)) {
+            this.log("Filter command was called.")
+
+            const args = command.slice(prefix.length).trim().split(" ").filter(Boolean)
+
+            if (args.length == 0) {
+                this.proxyChat("§cPlease provide at least one username to filter.")
+                return true
+            }
+
+            args.forEach((name) => {
+                this.filterList.add(name)
+                this.proxyChat(`§f${name} added to filter.`)
+            })
+
+            return true
+        }
+
         // update_config command 
         prefix = `/${config.commands.update_config}`
         if (command.startsWith(prefix)) {
             this.log("Config command was called.")
 
-            const args = command.slice(prefix.length).trim().split(/\s+/).filter(Boolean)
+            const args = command.slice(prefix.length).trim().split(" ").filter(Boolean)
 
             if (args.length < 2) {
                 this.proxyChat("§cPlease provide a config setting and a new value for it.")
@@ -367,7 +389,7 @@ class HyProxy {
                 const msg = this.formatStatsMessage(username, stats)
                 this.statCache.set(username, msg)
 
-                if (stats.fkdr >= config.ignore_benchmarks.fkdr || stats.stars >= config.ignore_benchmarks.stars)
+                if (stats.fkdr >= config.filter_benchmarks.fkdr || stats.stars >= config.filter_benchmarks.stars)
                     this.proxyChat(msg)
             })
         })

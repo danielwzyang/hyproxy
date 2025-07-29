@@ -22,9 +22,10 @@ class HyProxy {
             this.client = client
             this.handleLogin()
         })
+
         this.server.on("error", (err) => console.error("Proxy server error:", err))
 
-        console.log("Proxy server started.")
+        this.log("Proxy server started.")
 
         this.statCache = new Map()
 
@@ -33,17 +34,140 @@ class HyProxy {
             this.tag = `${config.tag_color}[${this.tag}] `
     }
 
+    log(message) {
+        console.log(`${new Date().toLocaleTimeString()}: ${message}`)
+    }
+
+    handleLogin() {
+        this.log(`Client connected: ${this.client.username}`)
+
+        this.target = mc.createClient({
+            host: "mc.hypixel.net",
+            port: 25565,
+            username: this.client.username,
+            uuid: this.client.id,
+            auth: "microsoft",
+            version: config.version,
+            profile: this.client.profile,
+            profilesFolder: config.cache_folder
+        })
+
+        this.client.on("packet", (data, meta) => {
+            if (meta.name === "chat" && data.message)
+                if (data.message.startsWith("/") && this.handleCommand(data.message))
+                    // don't forward command to server
+                    return
+
+            if (this.target.state === meta.state) {
+                try {
+                    this.target.write(meta.name, data)
+                } catch (err) {
+                    console.error(`Error forwarding client to server packet ${meta.name}:`, err)
+                }
+            }
+        })
+
+        this.target.on("packet", (data, meta) => {
+            if (this.client.state === meta.state) {
+                try {
+                    this.client.write(meta.name, data)
+                } catch (err) {
+                    console.error(`Error forwarding server to client packet ${meta.name}:`, err)
+                }
+            }
+        })
+
+        this.client.on("error", (err) => {
+            console.error("Client error:", err)
+            this.target.end()
+        })
+
+        this.target.on("error", (err) => {
+            console.error("this.target error:", err)
+            client.end()
+        })
+
+        this.client.on("end", () => {
+            this.log(`Client disconnected: ${this.client.username}`)
+            this.target.end()
+        })
+
+        this.target.on("end", () => {
+            this.log(`Disconnected from target server: ${this.client.username}`)
+            this.client.end()
+        })
+
+        this.target.on("chat", (packet) => {
+            this.handleChatPacket(packet)
+        })
+    }
+
+    handleChatPacket(packet) {
+        try {
+            const rawMessage = this.extractText(JSON.parse(packet.message))
+
+            // /who was called
+            if (rawMessage.startsWith("ONLINE: ")) {
+                this.log("Beginning statchecks.")
+                const players = rawMessage.replace("ONLINE: ", "").split(", ")
+
+                let delay = 0
+
+                players.forEach((name) => {
+                    if (config.ignore_self && name === this.client.username) return
+
+                    setTimeout(() => this.statcheck(name), delay)
+
+                    delay += config.check_delay
+                })
+            }
+
+            // bedwars game has started
+            if (config.auto_who && rawMessage.trim() === "to access powerful upgrades.")
+                this.target.write("chat", { message: "/who" })
+        } catch (e) {
+            console.error("Error processing chat packet:", e)
+        }
+    }
+
+    handleCommand(command) {
+        // statcheck command
+        let prefix = `/${config.commands.statcheck}`
+        if (command.startsWith(prefix)) {
+            this.log("Statcheck command was called.")
+
+            const args = command.slice(prefix.length).trim().split(/\s+/).filter(Boolean)
+
+            if (args.length == 0) {
+                this.proxyChat("§cPlease provide at least one name to statcheck.")
+                return true
+            }
+
+            args.forEach((name, i) => {
+                setTimeout(() => {
+                    this.statcheck(name)
+                }, config.check_delay * i)
+            })
+
+            return true
+        }
+
+        return false
+    }
+
+    // send server side messages
     proxyChat(message) {
-        console.log(`<< ${message}`)
+        this.log(`<< ${message}`)
         this.client.write("chat", {
             message: JSON.stringify({
                 text: `§7${this.tag}${message}`,
                 color: "white",
             }),
-            position: 0,
+            position: 1,
         })
     }
 
+    // extract a string from the message json that's given
     extractText(component) {
         // this recursion is probably overkill
         let res = ""
@@ -63,15 +187,15 @@ class HyProxy {
     getRankColor(rank) {
         switch (rank) {
             case "MVP_PLUS_PLUS":
-                return "§6";
+                return "§6"
             case "MVP_PLUS":
             case "MVP":
-                return "§b";
+                return "§b"
             case "VIP_PLUS":
             case "VIP":
-                return "§a";
+                return "§a"
             default:
-                return "§7";
+                return "§7"
         }
     }
 
@@ -154,15 +278,15 @@ class HyProxy {
     }
 
     statcheck(name) {
-        console.log(`Statchecking ${name}.`)
+        this.log(`Statchecking ${name}.`)
         if (this.statCache.has(name)) {
-            console.log(`${name} found in cache.`)
+            this.log(`${name} found in cache.`)
             return this.proxyChat(this.statCache.get(name))
         }
 
         this.getMojangUUID(name).then(data => {
             if (!data) {
-                console.log("No user found.")
+                this.log(`UUID for ${name} not found.`)
                 return this.proxyChat(`§f${name}: §cNo user found`)
             }
 
@@ -170,124 +294,18 @@ class HyProxy {
 
             this.getStats(uuid).then(stats => {
                 if (!stats) {
-                    console.log("No stats found.")
+                    this.log(`Stats for ${name} not found.`)
                     return this.proxyChat(`${config.name_color}${username}: §cNo stats found`)
                 }
 
-                console.log("Stats found. Adding to cache.")
+                this.log(`Stats for ${name} found. Adding to cache.`)
                 const msg = this.formatStatsMessage(username, stats)
                 this.statCache.set(username, msg)
-                this.proxyChat(msg)
+
+                if (stats.fkdr >= config.ignore_benchmarks.fkdr || stats.stars >= config.ignore_benchmarks.stars)
+                    this.proxyChat(msg)
             })
         })
-    }
-
-    handleLogin() {
-        console.log(`Client connected: ${this.client.username}`)
-
-        const target = mc.createClient({
-            host: "mc.hypixel.net",
-            port: 25565,
-            username: this.client.username,
-            uuid: this.client.id,
-            auth: "microsoft",
-            version: config.version,
-            profile: this.client.profile,
-            profilesFolder: config.cache_folder
-        })
-
-        this.client.on("packet", (data, meta) => {
-            if (meta.name === "chat" && data.message)
-                if (data.message.startsWith("/") && this.handleCommand(data.message))
-                    // don't forward command to server
-                    return
-
-            if (target.state === meta.state) {
-                try {
-                    target.write(meta.name, data)
-                } catch (err) {
-                    console.error(`Error forwarding client to server packet ${meta.name}:`, err)
-                }
-            }
-        })
-
-        target.on("packet", (data, meta) => {
-            if (this.client.state === meta.state) {
-                try {
-                    this.client.write(meta.name, data)
-                } catch (err) {
-                    console.error(`Error forwarding server to client packet ${meta.name}:`, err)
-                }
-            }
-        })
-
-        this.client.on("error", (err) => {
-            console.error("Client error:", err)
-            target.end()
-        })
-
-        target.on("error", (err) => {
-            console.error("Target error:", err)
-            client.end()
-        })
-
-        this.client.on("end", () => {
-            console.log(`Client disconnected: ${this.client.username}`)
-            target.end()
-        })
-
-        target.on("end", () => {
-            console.log(`Disconnected from target server: ${this.client.username}`)
-            this.client.end()
-        })
-
-        target.on("chat", (packet) => {
-            this.handleChatPacket(packet)
-        })
-    }
-
-    handleChatPacket(packet) {
-        try {
-            const rawMessage = this.extractText(JSON.parse(packet.message))
-
-            if (rawMessage.startsWith("ONLINE: ")) {
-                console.log("Beginning statchecks.")
-                const players = rawMessage.replace("ONLINE: ", "").split(", ")
-
-                players.forEach((name, i) => {
-                    setTimeout(() => {
-                        this.statcheck(name)
-                    }, config.check_delay * i)
-                })
-            }
-        } catch (e) {
-            console.error("Error processing chat packet:", e)
-        }
-    }
-
-    handleCommand(command) {
-        // statcheck command
-        let prefix = `/${config.commands.statcheck}`
-        if (command.startsWith(prefix)) {
-            console.log("Statcheck command was called.")
-
-            const args = command.slice(prefix.length).trim().split(/\s+/).filter(Boolean)
-
-            if (args.length == 0) {
-                this.proxyChat("§cPlease provide at least one name to statcheck.")
-                return true
-            }
-
-            args.forEach((name, i) => {
-                setTimeout(() => {
-                    this.statcheck(name)
-                }, config.check_delay * i)
-            })
-
-            return true
-        }
-
-        return false
     }
 }
 

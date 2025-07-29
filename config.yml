@@ -1,0 +1,16 @@
+tag: HYPROXY # will be printed with the statchecks - leave blank if you want it omitted
+tag_color: §d # the minecraft color code for the tag
+name_color: §f # the minecraft color code for names that show up in statcheck
+
+version: 1.8.9 # version of minecraft that the client is connecting with
+cache_folder: ./cache # the folder that will store the token for logging in to your microsoft account
+
+check_delay: 100 # the delay (in ms) between each stat check (to help prevent rate limiting)
+
+fkdr_benchmarks: # the benchmarks that determine the color of a player's FKDR in the stat messages
+  low: 3 # shows as yellow
+  medium: 5 # shows as gray
+  good: 10 # shows as red
+
+commands: # the aliases for commands
+  statcheck: sc

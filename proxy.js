@@ -1,5 +1,13 @@
 require("dotenv").config()
 
+if (!process.env.HYPIXEL_API_KEY) {
+    console.error("API key not found. Please follow these directions:\n\nVisit https://developer.hypixel.net/dashboard/apps and file a request to create an application for a long-term API key.\nYou can make up anything you want e.g. a discord stat bot (but do not mention this application as it is not allowed).\n\nIn the working directory create a file called '.env'.\nIn this file type: HYPIXEL_API_KEY=replace_this_part_with_your_key")
+    process.exit()
+}
+
+const fs = require("fs")
+const config = require("yaml").parse(fs.readFileSync("./config.yml", "utf8"))
+
 const mc = require("minecraft-protocol")
 
 class HyProxy {
@@ -7,69 +15,90 @@ class HyProxy {
         this.server = mc.createServer({
             "online-mode": true,
             port: 25565,
-            version: "1.8.9"
+            version: config.version,
+            hideErrors: true,
         })
 
-        this.server.on("login", (client) => this.handleLogin(client))
+        this.server.on("login", (client) => {
+            this.client = client
+            this.handleLogin()
+        })
         this.server.on("error", (err) => console.error("Proxy server error:", err))
 
-        console.log("Proxy server running")
+        console.log("Proxy server started.")
 
         this.statCache = new Map()
+
+        this.tag = config.tag?.trim() || ""
+        if (this.tag.length > 0)
+            this.tag = `${config.tag_color}[${this.tag}] `
     }
 
-    proxyChat(client, message) {
+    proxyChat(message) {
         console.log(`<< ${message}`)
-        client.write("chat", {
+        this.client.write("chat", {
             message: JSON.stringify({
-                text: `§7[HYPROXY] ${message}`
+                text: `§7${this.tag}${message}`,
+                color: "white",
             }),
+            position: 0,
         })
     }
 
     extractText(component) {
+        // this recursion is probably overkill
         let res = ""
 
         if (component.text) res += component.text
 
-        // this recursion is probably overkill
         if (component.extra)
             component.extra.forEach(part => res += this.extractText(part))
 
         return res
     }
 
-    formatStatsMessage(name, stats) {
-        return `${name}: ${this.getColoredStar(stats.stars)} §7| ${this.getColoredFKDR(stats.fkdr)} FKDR`
+    formatStatsMessage(username, stats) {
+        return `${config.name_color}${username}: ${this.getColoredStar(stats.stars)} §7| ${this.getColoredFKDR(stats.fkdr)} FKDR`
     }
 
     getColoredStar(starLevel) {
         const starColors = [
-            '§7', // 0-99: gray
-            '§f', // 100-199: white
-            '§6', // 200-299: gold
-            '§b', // 300-399: cyan
-            '§2', // 400-499: dark green
-            '§3', // 500-599: dark aqua
-            '§4', // 600-699: dark red
-            '§d', // 700-799: pink
-            '§9', // 800-899: blue
-            '§5', // 900-999: purple
-            '§f'  // 1000+: white
-        ];
+            "§7", // 0-99: gray
+            "§f", // 100-199: white
+            "§6", // 200-299: gold
+            "§b", // 300-399: cyan
+            "§2", // 400-499: dark green
+            "§3", // 500-599: dark aqua
+            "§4", // 600-699: dark red
+            "§d", // 700-799: pink
+            "§9", // 800-899: blue
+            "§5", // 900-999: purple
+        ]
 
-        if (starLevel >= 1000) return `${starColors[10]}${starLevel}✫`;
+        // everything past 1000 is rainbow prestige because i'm too lazy for anything more
+        if (starLevel >= 1000) {
+            const str = starLevel.toString()
+            const rainbow = ["§c", "§6", "§e", "§a", "§d", "§5"] // red, orange, yellow, green, pink, purple
 
-        return `${starColors[Math.floor(starLevel / 100)]}${starLevel}✫`;
+            let colored = `${rainbow[0]}[`
+
+            for (let i = 0; i < str.length; i++)
+                colored += `${rainbow[i + 1]}${str[i]}`
+
+            colored += `✫${rainbow[str.length + 1]}]`
+            
+            return colored
+        }
+
+        return `${starColors[Math.floor(starLevel / 100)]}[${starLevel}✫]`
     }
 
     getColoredFKDR(fkdr) {
         const fkdrNum = parseFloat(fkdr)
 
-        if (fkdrNum >= process.env.GREAT_FKDR) return `§4${fkdr}` // dark red
-        if (fkdrNum >= process.env.GOOD_FKDR) return `§c${fkdr}` // red
-        if (fkdrNum >= process.env.MEDIUM_FKDR) return `§6${fkdr}` // orange
-        if (fkdrNum >= process.env.LOW_FKDR) return `§e${fkdr}` // yellow
+        if (fkdrNum >= config.fkdr_benchmarks.good) return `§c${fkdr}` // red
+        if (fkdrNum >= config.fkdr_benchmarks.medium) return `§6${fkdr}` // orange
+        if (fkdrNum >= config.fkdr_benchmarks.low) return `§e${fkdr}` // yellow
         return `§7${fkdr}` // gray
     }
 
@@ -78,7 +107,7 @@ class HyProxy {
             const response = await fetch(`https://api.mojang.com/users/profiles/minecraft/${username}`)
             if (!response.ok) return null
             const data = await response.json()
-            return data.id
+            return { uuid: data.id, username: data.name }
         } catch (err) {
             console.error("fetch error:", err)
             return null
@@ -87,7 +116,7 @@ class HyProxy {
 
     async getBedwarsStats(uuid) {
         try {
-            const response = await fetch(`https://api.hypixel.net/v2/player?key=${process.env.API_KEY}&uuid=${uuid}`)
+            const response = await fetch(`https://api.hypixel.net/v2/player?key=${process.env.HYPIXEL_API_KEY}&uuid=${uuid}`)
             if (!response.ok) return null
             const data = await response.json()
             if (!data.success || !data.player) return null
@@ -107,21 +136,55 @@ class HyProxy {
         }
     }
 
-    handleLogin(client) {
-        console.log(`Client connected: ${client.username}`)
+    statcheck(name) {
+        console.log(`Statchecking ${name}.`)
+        if (this.statCache.has(name)) {
+            console.log(`${name} found in cache.`)
+            return this.proxyChat(this.statCache.get(name))
+        }
+
+        this.getMojangUUID(name).then(data => {
+            if (!data) {
+                console.log("No user found.")
+                return this.proxyChat(`${config.name_color}${name}: §cNo user found`)
+            }
+
+            const { uuid, username } = data
+
+            this.getBedwarsStats(uuid).then(stats => {
+                if (!stats) {
+                    console.log("No stats found.")
+                    return this.proxyChat(`${config.name_color}${username}: §cNo stats found`)
+                }
+
+                console.log("Stats found. Adding to cache.")
+                const msg = this.formatStatsMessage(username, stats)
+                this.statCache.set(username, msg)
+                this.proxyChat(msg)
+            })
+        })
+    }
+
+    handleLogin() {
+        console.log(`Client connected: ${this.client.username}`)
 
         const target = mc.createClient({
             host: "mc.hypixel.net",
             port: 25565,
-            username: client.username,
-            uuid: client.id,
+            username: this.client.username,
+            uuid: this.client.id,
             auth: "microsoft",
-            version: false,
-            profile: client.profile,
-            profilesFolder: "./cache"
+            version: config.version,
+            profile: this.client.profile,
+            profilesFolder: config.cache_folder
         })
 
-        client.on("packet", (data, meta) => {
+        this.client.on("packet", (data, meta) => {
+            if (meta.name === "chat" && data.message)
+                if (data.message.startsWith("/") && this.handleCommand(data.message))
+                    // don't forward command to server
+                    return
+
             if (target.state === meta.state) {
                 try {
                     target.write(meta.name, data)
@@ -132,16 +195,16 @@ class HyProxy {
         })
 
         target.on("packet", (data, meta) => {
-            if (client.state === meta.state) {
+            if (this.client.state === meta.state) {
                 try {
-                    client.write(meta.name, data)
+                    this.client.write(meta.name, data)
                 } catch (err) {
                     console.error(`Error forwarding server to client packet ${meta.name}:`, err)
                 }
             }
         })
 
-        client.on("error", (err) => {
+        this.client.on("error", (err) => {
             console.error("Client error:", err)
             target.end()
         })
@@ -151,22 +214,22 @@ class HyProxy {
             client.end()
         })
 
-        client.on("end", () => {
-            console.log(`Client disconnected: ${client.username}`)
+        this.client.on("end", () => {
+            console.log(`Client disconnected: ${this.client.username}`)
             target.end()
         })
 
         target.on("end", () => {
-            console.log(`Disconnected from target server: ${client.username}`)
-            client.end()
+            console.log(`Disconnected from target server: ${this.client.username}`)
+            this.client.end()
         })
 
         target.on("chat", (packet) => {
-            this.handleChatPacket(client, packet)
+            this.handleChatPacket(packet)
         })
     }
 
-    handleChatPacket(client, packet) {
+    handleChatPacket(packet) {
         try {
             const rawMessage = this.extractText(JSON.parse(packet.message))
 
@@ -176,36 +239,38 @@ class HyProxy {
 
                 players.forEach((name, i) => {
                     setTimeout(() => {
-                        console.log(`Statchecking ${name}.`)
-                        if (this.statCache.has(name)) {
-                            console.log(`${name} found in cache.`)
-                            return this.proxyChat(client, this.statCache.get(name))
-                        }
-
-                        this.getMojangUUID(name).then(uuid => {
-                            if (!uuid) {
-                                console.log("No uuid found.")
-                                return this.proxyChat(client, `${name}: §cNo uuid found`)
-                            }
-
-                            this.getBedwarsStats(uuid).then(stats => {
-                                if (!stats) {
-                                    console.log("No stats found.")
-                                    return this.proxyChat(client, `${name}: §cNo stats found`)
-                                }
-
-                                console.log("Stats found. Adding to cache.")
-                                const msg = this.formatStatsMessage(name, stats)
-                                this.statCache.set(name, msg)
-                                this.proxyChat(client, this.formatStatsMessage(name, stats))
-                            })
-                        })
-                    }, process.env.CHECK_DELAY * i)
+                        this.statcheck(name)
+                    }, config.check_delay * i)
                 })
             }
         } catch (e) {
             console.error("Error processing chat packet:", e)
         }
+    }
+
+    handleCommand(command) {
+        // statcheck command
+        let prefix = `/${config.commands.statcheck}`
+        if (command.startsWith(prefix)) {
+            console.log("Statcheck command was called.")
+
+            const args = command.slice(prefix.length).trim().split(/\s+/).filter(Boolean)
+
+            if (args.length == 0) {
+                this.proxyChat("§cPlease provide at least one name to statcheck.")
+                return true
+            }
+
+            args.forEach((name, i) => {
+                setTimeout(() => {
+                    this.statcheck(name)
+                }, config.check_delay * i)
+            })
+
+            return true
+        }
+
+        return false
     }
 }
 

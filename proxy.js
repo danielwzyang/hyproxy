@@ -84,7 +84,7 @@ class HyProxy {
         })
 
         this.target.on("error", (err) => {
-            this.log("this.target error:", err)
+            this.log("Target error:", err)
             client.end()
         })
 

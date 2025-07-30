@@ -42,6 +42,11 @@ class HyProxy {
     handleLogin() {
         this.log(`Client connected to proxy: ${this.client.username}`)
 
+        this.pingInterval = setInterval(() => {
+            if (config.show_ping)
+                this.pingTarget()
+        }, config.ping_interval)
+
         this.target = mc.createClient({
             host: "mc.hypixel.net",
             port: 25565,
@@ -92,11 +97,13 @@ class HyProxy {
 
         this.client.on("end", () => {
             this.log(`Client disconnected: ${this.client.username}`)
+            if (this.pingInterval) clearInterval(this.pingInterval)
             this.target.end()
         })
 
         this.target.on("end", () => {
             this.log(`Disconnected from target server: ${this.client.username}`)
+            if (this.pingInterval) clearInterval(this.pingInterval)
             this.client.end()
         })
 
@@ -366,10 +373,6 @@ class HyProxy {
 
     statcheck(name) {
         this.log(`Statchecking ${name}.`)
-        if (this.statCache.has(name)) {
-            this.log(`${name} found in cache.`)
-            return this.proxyChat(this.statCache.get(name))
-        }
 
         this.getMojangUUID(name).then(data => {
             if (!data) {
@@ -379,18 +382,35 @@ class HyProxy {
 
             const { uuid, username } = data
 
+            if (this.statCache.has(username)) {
+                this.log(`${username} found in cache.`)
+                return this.proxyChat(this.statCache.get(username))
+            }
+
             this.getStats(uuid).then(stats => {
                 if (!stats) {
-                    this.log(`Stats for ${name} not found.`)
+                    this.log(`Stats for ${username} not found.`)
                     return this.proxyChat(`${config.name_prefix}${username}: §cNo stats found`)
                 }
 
-                this.log(`Stats for ${name} found. Adding to cache.`)
+                this.log(`Stats for ${username} found. Adding to cache.`)
                 const msg = this.formatStatsMessage(username, stats)
                 this.statCache.set(username, msg)
 
                 if (Number(stats.fkdr) >= config.filter_benchmarks.fkdr || Number(stats.stars) >= config.filter_benchmarks.stars)
                     this.proxyChat(msg)
+            })
+        })
+    }
+
+    pingTarget() {
+        mc.ping({ host: "mc.hypixel.net", port: 25565 }, (err, res) => {
+            if (err) this.log("Error pinging:", err)
+            else this.client.write("chat", {
+                message: JSON.stringify({
+                    text: `${config.ping_prefix}${Math.round(res.latency)} ms`
+                }),
+                position: 2,
             })
         })
     }

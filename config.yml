@@ -27,3 +27,7 @@ filter_benchmarks: # the benchmarks that determine when a player's stats should 
   stars: 100
 # these benchmarks also apply to yourself if filter_self is false
 # upon the second /who these benchmarks will be ignored and all players' stats will be printed (excluding yourself if filter_self is true)
+
+show_ping: true # show hypixel ping above hotbar
+ping_interval: 1000 # the delay (in ms) between each ping update
+ping_prefix: §f

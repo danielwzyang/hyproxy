@@ -5,6 +5,6 @@
         "yaml": "^2.8.0"
     },
     "scripts": {
-        "proxy": "node proxy.js"
+        "proxy": "node src/proxy.js"
     }
 }

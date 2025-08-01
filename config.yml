@@ -2,31 +2,28 @@ tag: HYPROXY # will be printed with the statchecks if show_tag is true
 show_tag: true
 tag_prefix: §d # the minecraft color/style codes for the tag
 name_prefix: §f # the minecraft color/style codes for names that show up in statcheck
-
 version: 1.8.9 # version of minecraft that the client is connecting with
 cache_folder: ./cache # the folder that will store the token for logging in to your microsoft account
 
+commands: # the aliases for commands
+  statcheck: sc
+  stat_filter: filter # this will hide certain names from showing up in /who statchecks similar to filter_self 
+  update_config: setconfig # this command will only update the in-memory config - for indefinite changes edit the values in this file directly  
+
+## stat checking
 auto_who: true # enable automatically calling /who at the start of a game
-
 filter_self: true # filter your own stats when statchecking after /who
-
 check_delay: 100 # the delay (in ms) between each stat check (to help prevent rate limiting)
-
+threats_only: true # if true only threats will be printed when /who is called for the first time - this will be overrided if the player is currently in the stat cache
+threat_benchmarks: # the benchmarks that determine when a player's stats is a threat
+  fkdr: 3
+  stars: 100
 fkdr_benchmarks: # the benchmarks that determine the color of a player's FKDR in the stat messages
   low: 3 # shows as yellow
   medium: 5 # shows as orange
   good: 10 # shows as red
 
-commands: # the aliases for commands
-  statcheck: sc
-  stat_filter: filter # this will hide certain names from showing up in /who statchecks similar to filter_self 
-  update_config: setconfig # this command will only update the in-memory config - for indefinite changes edit the values in this file directly
-
-threats_only: true # if true only threats will be printed when /who is called
-threat_benchmarks: # the benchmarks that determine when a player's stats is a threat
-  fkdr: 3
-  stars: 100
-
+## ping
 show_ping: true # show hypixel ping above hotbar
 ping_interval: 1000 # the delay (in ms) between each ping update
 ping_prefix: §f

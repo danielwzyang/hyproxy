@@ -131,8 +131,12 @@ class HyProxy {
             }
 
             // bedwars game has started
-            if (config.auto_who && rawMessage.trim() === "to access powerful upgrades.")
-                this.target.write("chat", { message: "/who" })
+            if (rawMessage.trim() === "to access powerful upgrades.") {
+                if (config.auto_who)
+                    this.target.write("chat", { message: "/who" })
+
+                this.statCache.clear()
+            }
         } catch (e) {
             formatter.log("Error processing chat packet:", e)
         }

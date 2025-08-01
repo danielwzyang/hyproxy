@@ -116,7 +116,6 @@ class HyProxy {
 
             // /who was called
             if (rawMessage.startsWith("ONLINE: ")) {
-                formatter.log("Beginning statchecks.")
                 const players = rawMessage.replace("ONLINE: ", "").split(", ")
 
                 let delay = 0
@@ -146,8 +145,6 @@ class HyProxy {
         // statcheck command
         let prefix = `/${config.commands.statcheck}`
         if (command.startsWith(prefix)) {
-            formatter.log("Statcheck command was called.")
-
             const args = command.slice(prefix.length).trim().split(" ").filter(Boolean)
 
             if (args.length == 0) {
@@ -167,8 +164,6 @@ class HyProxy {
         // filter command
         prefix = `/${config.commands.stat_filter}`
         if (command.startsWith(prefix)) {
-            formatter.log("Filter command was called.")
-
             const args = command.slice(prefix.length).trim().split(" ").filter(Boolean)
 
             if (args.length == 0) {
@@ -187,8 +182,6 @@ class HyProxy {
         // update_config command 
         prefix = `/${config.commands.update_config}`
         if (command.startsWith(prefix)) {
-            formatter.log("Config command was called.")
-
             const args = command.slice(prefix.length).trim().split(" ").filter(Boolean)
 
             if (args.length < 2) {
@@ -305,7 +298,7 @@ class HyProxy {
             const data = await response.json()
             return { uuid: data.id, username: data.name }
         } catch (err) {
-            formatter.log("fetch error:", err)
+            formatter.log("Error fetching UUID:", err)
             return null
         }
     }
@@ -330,7 +323,7 @@ class HyProxy {
 
             return { stars, fkdr, rank }
         } catch (err) {
-            formatter.log("hypixel api error:", err)
+            formatter.log("Error fetching Hypixel API:", err)
             return null
         }
     }

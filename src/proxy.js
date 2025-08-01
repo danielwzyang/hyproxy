@@ -264,28 +264,16 @@ class HyProxy {
     }
 
     statcheck({ name, fromSlashWho = false }) {
-        formatter.log(`Statchecking ${name}.`)
-
         this.getMojangUUID(name).then(data => {
-            if (!data) {
-                formatter.log(`UUID for ${name} not found.`)
-                return this.proxyChat(`§f${name}: §cNo user found`)
-            }
+            if (!data) return this.proxyChat(`§f${name}: §cNo user found`)
 
             const { uuid, username } = data
 
-            if (this.statCache.has(username)) {
-                formatter.log(`${username} found in cache.`)
-                return this.proxyChat(this.statCache.get(username))
-            }
+            if (this.statCache.has(username)) return this.proxyChat(this.statCache.get(username))
 
             this.getStats(uuid).then(stats => {
-                if (!stats) {
-                    formatter.log(`Stats for ${username} not found.`)
-                    return this.proxyChat(`${config.name_prefix}${username}: §cNo stats found`)
-                }
+                if (!stats) this.proxyChat(`${config.name_prefix}${username}: §cNo stats found`)
 
-                formatter.log(`Stats for ${username} found. Adding to cache.`)
                 const msg = formatter.formatStatsMessage(username, stats, config.fkdr_benchmarks)
                 this.statCache.set(username, msg)
 

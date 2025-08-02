@@ -313,7 +313,7 @@ class HyProxy {
             const bw = data.player.stats?.Bedwars
             if (!bw) return null
 
-            const stars = Math.floor(bw.Experience / 5000)
+            const stars = data.player.achievements.bedwars_level || 0
             const finalKills = bw.final_kills_bedwars || 0
             const finalDeaths = bw.final_deaths_bedwars || 1
             const fkdr = (finalKills / finalDeaths).toFixed(2)

@@ -265,7 +265,7 @@ class HyProxy {
             if (this.statCache.has(username)) return this.proxyChat(this.statCache.get(username))
 
             this.getStats(uuid).then(stats => {
-                if (!stats) this.proxyChat(`${config.name_prefix}${username}: §cNo stats found`)
+                if (!stats) return this.proxyChat(`${config.name_prefix}${username}: §cNo stats found`)
 
                 const msg = formatter.formatStatsMessage(username, stats, config.fkdr_benchmarks)
                 this.statCache.set(username, msg)

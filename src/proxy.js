@@ -33,7 +33,7 @@ class HyProxy {
 
         this.statCache = new Map()
 
-        this.filterList = new Set()
+        this.filterList = new Set(config.filter_list.split(",").filter(Boolean))
 
         config.tag = config.tag?.trim() || ""
     }
@@ -179,7 +179,7 @@ class HyProxy {
 
             args.forEach((name) => {
                 this.filterList.add(name.toLowerCase())
-                this.proxyChat(`§d${name} §fadded to filter.`)
+                this.proxyChat(`§a${name} §fadded to filter.`)
             })
 
             return true

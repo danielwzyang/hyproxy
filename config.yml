@@ -14,7 +14,7 @@ commands: # the aliases for commands
 auto_who: true # enable automatically calling /who at the start of a game
 filter_self: true # filter your own stats when statchecking after /who
 check_delay: 100 # the delay (in ms) between each stat check (to help prevent rate limiting)
-threats_only: true # if true only threats will be printed when /who is called for the first time - this will be overrided if the player is currently in the stat cache
+threats_only: true # if true only threats will be printed
 threat_benchmarks: # the benchmarks that determine when a player's stats is a threat
   fkdr: 3
   stars: 100
@@ -27,3 +27,8 @@ fkdr_benchmarks: # the benchmarks that determine the color of a player's FKDR in
 show_ping: true # show hypixel ping above hotbar
 ping_interval: 1000 # the delay (in ms) between each ping update
 ping_prefix: §f
+
+## slumber hotel
+slumber_alerts: true # show alert if any tradable slumber item is >= slumber_alert_limit
+slumber_alert_limit: 450
+slumber_alert_delay: 2000 # delay (in ms) after game end to print alert

@@ -49,7 +49,7 @@ class HyProxy {
             host: "mc.hypixel.net",
             port: 25565,
             username: this.client.username,
-            uuid: this.client.id,
+            uuid: this.client.profile.id,
             auth: "microsoft",
             version: config.version,
             profile: this.client.profile,
@@ -121,7 +121,7 @@ class HyProxy {
                 let delay = 0
 
                 players.forEach((name) => {
-                    if ((config.filter_self && name === this.client.username) || this.filterList.has(name)) return
+                    if ((config.filter_self && name === this.client.username) || this.filterList.has(name.toLowerCase())) return
 
                     setTimeout(() => this.statcheck({ name, fromSlashWho: true }), delay)
 
@@ -136,6 +136,11 @@ class HyProxy {
 
                 this.statCache.clear()
             }
+
+            // bedwars game has ended
+            if (rawMessage.trim().startsWith("1st Killer - "))
+                if (config.slumber_alerts)
+                    this.slumberAlert()
         } catch (e) {
             formatter.log("Error processing chat packet:", e)
         }
@@ -172,8 +177,8 @@ class HyProxy {
             }
 
             args.forEach((name) => {
-                this.filterList.add(name)
-                this.proxyChat(`§f${name} added to filter.`)
+                this.filterList.add(name.toLowerCase())
+                this.proxyChat(`§d${name} §fadded to filter.`)
             })
 
             return true
@@ -256,27 +261,30 @@ class HyProxy {
         })
     }
 
+    printStats(username, stats, fromSlashWho) {
+        if (!stats) return this.proxyChat(`${config.name_prefix}${username}: §cNo stats found`)
+
+        this.statCache.set(username, stats)
+
+        const msg = formatter.formatStatsMessage(username, stats, config.fkdr_benchmarks)
+
+        // only ignore non threats if the statcheck comes from /who and config.threats_only is true
+        const isThreat = Number(stats.fkdr) >= config.threat_benchmarks.fkdr || Number(stats.stars) >= config.threat_benchmarks.stars
+        if (fromSlashWho && config.threats_only && !isThreat)
+            return
+
+        this.proxyChat(msg)
+    }
+
     statcheck({ name, fromSlashWho = false }) {
         this.getMojangUUID(name).then(data => {
             if (!data) return this.proxyChat(`§f${name}: §cNo user found`)
 
             const { uuid, username } = data
 
-            if (this.statCache.has(username)) return this.proxyChat(this.statCache.get(username))
+            if (this.statCache.has(username)) return this.printStats(username, this.statCache.get(username, fromSlashWho))
 
-            this.getStats(uuid).then(stats => {
-                if (!stats) return this.proxyChat(`${config.name_prefix}${username}: §cNo stats found`)
-
-                const msg = formatter.formatStatsMessage(username, stats, config.fkdr_benchmarks)
-                this.statCache.set(username, msg)
-
-                // only ignore non threats if the statcheck comes from /who and config.threats_only is true
-                const isThreat = Number(stats.fkdr) >= config.threat_benchmarks.fkdr || Number(stats.stars) >= config.threat_benchmarks.stars
-                if (fromSlashWho && config.threats_only && !isThreat)
-                    return
-
-                this.proxyChat(msg)
-            })
+            this.getStats(uuid).then(stats => this.printStats(username, stats, fromSlashWho))
         })
     }
 
@@ -298,7 +306,6 @@ class HyProxy {
             const data = await response.json()
             return { uuid: data.id, username: data.name }
         } catch (err) {
-            formatter.log("Error fetching UUID:", err)
             return null
         }
     }
@@ -321,11 +328,46 @@ class HyProxy {
             const plusplus = data.player.monthlyPackageRank && data.player.monthlyPackageRank === "SUPERSTAR"
             const rank = plusplus ? "MVP_PLUS_PLUS" : (data.player.packageRank || data.player.newPackageRank || "NONE")
 
-            return { stars, fkdr, rank }
+            const items = bw.slumber.quest.item
+
+            const slumber = {
+                "Bed Sheet": items.slumber_item_bed_sheets || 0,
+                "Ender Dust": items.slumber_item_ender_dust || 0,
+                "Iron Nugget": items.slumber_item_iron_nugget || 0,
+                "Silver Coin": items.slumber_item_silver_coins || 0,
+                "Dreamer's Soul Fragment": items.slumber_item_ || 0,
+                "Comfy Pillow": items.slumber_item_comfy_pillow || 0,
+                "Token of Ferocity": items.slumber_item_token_of_ferocity || 0,
+                "Spare Wool Cable": items.slumber_item_cable || 0,
+                "Gold Bar": items.slumber_item_gold_bar || 0,
+                "Diamond Fragment": items.slumber_item_diamond_fragment || 0,
+                "Emerald Shard": items.slumber_item_emerald_shard || 0,
+                "Nether Star": items.slumber_item_nether_star || 0,
+            }
+
+            return { stars, fkdr, rank, slumber }
         } catch (err) {
-            formatter.log("Error fetching Hypixel API:", err)
             return null
         }
+    }
+
+    printSlumber(stats) {
+        if (!stats) return this.proxyChat(`§cError fetching Slumber Hotel stats.`)
+
+        const items = []
+
+        for (let item in stats.slumber)
+            if (stats.slumber[item] >= config.slumber_alert_limit)
+                items.push(`${item} (${stats.slumber[item]})`)
+
+        if (items.length > 0)
+            setTimeout(() => this.proxyChat(`§aSlumber Alert: §f${items.join(", ")}`), config.slumber_alert_delay)
+    }
+
+    slumberAlert() {
+        if (this.statCache.has(this.client.username)) return this.printSlumber(this.statCache.get(this.client.username))
+
+        this.getStats(this.client.profile.id).then(stats => this.printSlumber(stats))
     }
 }
 

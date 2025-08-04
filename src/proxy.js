@@ -19,6 +19,7 @@ class HyProxy {
             "online-mode": true,
             port: 25565,
             version: config.version,
+            motd: "github.com/danielwzyang",
         })
 
         this.server.on("login", (client) => {
@@ -261,30 +262,34 @@ class HyProxy {
         })
     }
 
-    printStats(username, stats, fromSlashWho) {
-        if (!stats) return this.proxyChat(`${config.name_prefix}${username}: §cNo stats found`)
-
-        this.statCache.set(username, stats)
-
-        const msg = formatter.formatStatsMessage(username, stats, config.fkdr_benchmarks)
-
-        // only ignore non threats if the statcheck comes from /who and config.threats_only is true
-        const isThreat = Number(stats.fkdr) >= config.threat_benchmarks.fkdr || Number(stats.stars) >= config.threat_benchmarks.stars
-        if (fromSlashWho && config.threats_only && !isThreat)
-            return
-
-        this.proxyChat(msg)
-    }
-
     statcheck({ name, fromSlashWho = false }) {
         this.getMojangUUID(name).then(data => {
             if (!data) return this.proxyChat(`§f${name}: §cNo user found`)
 
             const { uuid, username } = data
 
-            if (this.statCache.has(username)) return this.printStats(username, this.statCache.get(username, fromSlashWho))
+            if (this.statCache.has(username)) {
+                const { msg, isThreat } = this.statCache.get(username)
 
-            this.getStats(uuid).then(stats => this.printStats(username, stats, fromSlashWho))
+                if (!(fromSlashWho && config.threats_only && !isThreat)) 
+                    this.proxyChat(msg)
+
+                return
+            }
+
+            this.getStats(uuid).then(stats => {
+                if (!stats) return this.proxyChat(`${config.name_prefix}${username}: §cNo stats found`)
+
+                const msg = formatter.formatStatsMessage(username, stats, config.fkdr_benchmarks)
+
+                const isThreat = Number(stats.fkdr) >= config.threat_benchmarks.fkdr || Number(stats.stars) >= config.threat_benchmarks.stars
+
+                this.statCache.set(username, { msg, isThreat })
+
+                // only ignore non threats if the statcheck comes from /who and config.threats_only is true
+                if (!(fromSlashWho && config.threats_only && !isThreat)) 
+                    this.proxyChat(msg)
+            })
         })
     }
 
@@ -315,7 +320,10 @@ class HyProxy {
             const response = await fetch(`https://api.hypixel.net/v2/player?key=${process.env.HYPIXEL_API_KEY}&uuid=${uuid}`)
             if (!response.ok) return null
             const data = await response.json()
-            if (!data.success || !data.player) return null
+            if (!data.success || !data.player) {
+                this.log(`Error fetching API: ${data.cause}`)
+                return null
+            }
 
             const bw = data.player.stats?.Bedwars
             if (!bw) return null
@@ -328,14 +336,14 @@ class HyProxy {
             const plusplus = data.player.monthlyPackageRank && data.player.monthlyPackageRank === "SUPERSTAR"
             const rank = plusplus ? "MVP_PLUS_PLUS" : (data.player.packageRank || data.player.newPackageRank || "NONE")
 
-            const items = bw.slumber.quest.item
+            const items = bw.slumber?.quest?.item || {}
 
             const slumber = {
                 "Bed Sheet": items.slumber_item_bed_sheets || 0,
                 "Ender Dust": items.slumber_item_ender_dust || 0,
                 "Iron Nugget": items.slumber_item_iron_nugget || 0,
                 "Silver Coin": items.slumber_item_silver_coins || 0,
-                "Dreamer's Soul Fragment": items.slumber_item_ || 0,
+                "Dreamer's Soul Fragment": items.slumber_item_soul || 0,
                 "Comfy Pillow": items.slumber_item_comfy_pillow || 0,
                 "Token of Ferocity": items.slumber_item_token_of_ferocity || 0,
                 "Spare Wool Cable": items.slumber_item_cable || 0,
@@ -367,7 +375,7 @@ class HyProxy {
     slumberAlert() {
         if (this.statCache.has(this.client.username)) return this.printSlumber(this.statCache.get(this.client.username))
 
-        this.getStats(this.client.profile.id).then(stats => this.printSlumber(stats))
+        this.getStats(this.client.profile.id).then(stats => { this.printSlumber(stats) })
     }
 }
 

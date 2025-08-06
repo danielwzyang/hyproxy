@@ -27,13 +27,13 @@ class HyProxy {
             this.handleLogin()
         })
 
-        this.server.on("error", (err) => formatter.log("Proxy server error:", err))
+        this.server.on("error", (err) => formatter.log(`Proxy server error: ${err}`))
 
         formatter.log("Proxy server started.")
 
         this.statCache = new Map()
 
-        this.filterList = new Set(config.filter_list.split(",").filter(Boolean))
+        this.filterList = new Set(config.filter_list.filter(Boolean))
 
         config.tag = config.tag?.trim() || ""
     }
@@ -69,7 +69,7 @@ class HyProxy {
                 try {
                     this.target.write(meta.name, data)
                 } catch (err) {
-                    formatter.log(`Error forwarding client to server packet ${meta.name}:`, err)
+                    formatter.log(`Error forwarding client to server packet ${meta.name}: ${err}`)
                 }
             }
         })
@@ -79,19 +79,19 @@ class HyProxy {
                 try {
                     this.client.write(meta.name, data)
                 } catch (err) {
-                    formatter.log(`Error forwarding server to client packet ${meta.name}:`, err)
+                    formatter.log(`Error forwarding server to client packet ${meta.name}: ${err}`)
                 }
             }
         })
 
         this.client.on("error", (err) => {
-            formatter.log("Client error:", err)
+            formatter.log(`Client error: ${err}`)
             this.target.end()
         })
 
         this.target.on("error", (err) => {
-            formatter.log("Target error:", err)
-            client.end()
+            formatter.log(`Target error: ${err}`)
+            this.client.end()
         })
 
         this.client.on("end", () => {
@@ -142,8 +142,8 @@ class HyProxy {
             if (rawMessage.trim().startsWith("1st Killer - "))
                 if (config.slumber_alerts)
                     this.slumberAlert()
-        } catch (e) {
-            formatter.log("Error processing chat packet:", e)
+        } catch (err) {
+            formatter.log(`Error processing chat packet: ${err}`)
         }
     }
 

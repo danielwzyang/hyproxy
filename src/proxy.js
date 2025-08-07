@@ -1,4 +1,4 @@
-require("dotenv").config()
+require("dotenv").config({ quiet: true })
 
 if (!process.env.HYPIXEL_API_KEY) {
     formatter.log("API key not found. Please follow these directions:\n\nVisit https://developer.hypixel.net/dashboard/apps and file a request to create an application for a long-term API key.\nYou can make up anything you want e.g. a discord stat bot (but do not mention this application as it is not allowed).\n\nIn the working directory create a file called '.env'.\nIn this file type: HYPIXEL_API_KEY=replace_this_part_with_your_key")
@@ -33,7 +33,7 @@ class HyProxy {
 
         this.statCache = new Map()
 
-        this.filterList = new Set(config.filter_list.filter(Boolean))
+        this.filterList = new Set(config.filter_list.filter(Boolean).map(e => e.toLowerCase()))
 
         config.tag = config.tag?.trim() || ""
     }

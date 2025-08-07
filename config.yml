@@ -15,6 +15,7 @@ auto_who: true # enable automatically calling /who at the start of a game
 filter_self: true # filter your own stats when statchecking after /who
 filter_list: # players you want to automatically be added to filter
   - hydroxyls
+  - Nathan999
 check_delay: 100 # the delay (in ms) between each stat check (to help prevent rate limiting)
 threats_only: true # if true only threats will be printed
 threat_benchmarks: # the benchmarks that determine when a player's stats is a threat

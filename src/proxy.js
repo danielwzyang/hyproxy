@@ -42,7 +42,7 @@ class HyProxy {
         formatter.log(`Client connected to proxy: ${this.client.username}`)
 
         this.pingInterval = setInterval(() => {
-            if (config.show_ping)
+            if (config.ping_alerts)
                 this.pingTarget()
         }, config.ping_interval)
 
@@ -60,6 +60,7 @@ class HyProxy {
         this.target.on("connect", () => formatter.log(`Client connected to target: ${this.target.username}`))
 
         this.client.on("packet", (data, meta) => {
+
             if (meta.name === "chat" && data.message)
                 if (data.message.startsWith("/") && this.handleCommand(data.message))
                     // don't forward command to server
@@ -67,7 +68,7 @@ class HyProxy {
 
             if (this.target.state === meta.state) {
                 try {
-                    this.target.write(meta.name, data)
+                    this.target.write(meta.name, data)  
                 } catch (err) {
                     formatter.log(`Error forwarding client to server packet ${meta.name}: ${err}`)
                 }
@@ -271,7 +272,7 @@ class HyProxy {
             if (this.statCache.has(username)) {
                 const { msg, isThreat } = this.statCache.get(username)
 
-                if (!(fromSlashWho && config.threats_only && !isThreat)) 
+                if (!(fromSlashWho && config.threats_only && !isThreat))
                     this.proxyChat(msg)
 
                 return
@@ -287,7 +288,7 @@ class HyProxy {
                 this.statCache.set(username, { msg, isThreat })
 
                 // only ignore non threats if the statcheck comes from /who and config.threats_only is true
-                if (!(fromSlashWho && config.threats_only && !isThreat)) 
+                if (!(fromSlashWho && config.threats_only && !isThreat))
                     this.proxyChat(msg)
             })
         })
@@ -295,12 +296,13 @@ class HyProxy {
 
     pingTarget() {
         mc.ping({ host: "mc.hypixel.net", port: 25565 }, (err, res) => {
-            if (!err) this.client.write("chat", {
-                message: JSON.stringify({
-                    text: `${config.ping_prefix}${Math.round(res.latency)} ms`
-                }),
-                position: 2,
-            })
+            if (err) return
+
+            const ping = Math.round(res.latency)
+            if (ping >= config.ping_benchmarks.high)
+                return this.proxyChat(`§c${ping}ms`)
+            if (ping >= config.ping_benchmarks.medium)
+                return this.proxyChat(`§e${ping}ms`)
         })
     }
 

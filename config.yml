@@ -27,9 +27,11 @@ fkdr_benchmarks: # the benchmarks that determine the color of a player's FKDR in
   good: 10 # shows as red
 
 ## ping
-show_ping: true # show hypixel ping above hotbar
+ping_alerts: true # show alert for abnormal ping in chat
 ping_interval: 1000 # the delay (in ms) between each ping update
-ping_prefix: §f
+ping_benchmarks: # benchmarks to determine abnormal ping
+  medium: 60 # shows as yellow
+  high: 100 # shows as red
 
 ## slumber hotel
 slumber_alerts: true # show alert if any tradable slumber item is >= slumber_alert_limit

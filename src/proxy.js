@@ -300,9 +300,9 @@ class HyProxy {
 
             const ping = Math.round(res.latency)
             if (ping >= config.ping_benchmarks.high)
-                return this.proxyChat(`§c High ping: ${ping}ms`)
+                return this.proxyChat(`§cHigh ping: ${ping}ms`)
             if (ping >= config.ping_benchmarks.medium)
-                return this.proxyChat(`§e Medium Ping: ${ping}ms`)
+                return this.proxyChat(`§eMedium Ping: ${ping}ms`)
         })
     }
 

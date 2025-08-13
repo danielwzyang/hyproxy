@@ -35,6 +35,8 @@ class HyProxy {
 
         this.filterList = new Set(config.filter_list.filter(Boolean).map(e => e.toLowerCase()))
 
+        this.guildList = new Set(config.guild_list.filter(Boolean).map(e => e.toLowerCase()))
+
         config.tag = config.tag?.trim() || ""
     }
 
@@ -68,7 +70,7 @@ class HyProxy {
 
             if (this.target.state === meta.state) {
                 try {
-                    this.target.write(meta.name, data)  
+                    this.target.write(meta.name, data)
                 } catch (err) {
                     formatter.log(`Error forwarding client to server packet ${meta.name}: ${err}`)
                 }
@@ -283,7 +285,8 @@ class HyProxy {
 
                 const msg = formatter.formatStatsMessage(username, stats, config.fkdr_benchmarks)
 
-                const isThreat = Number(stats.fkdr) >= config.threat_benchmarks.fkdr || Number(stats.stars) >= config.threat_benchmarks.stars
+                const isThreat = Number(stats.fkdr) >= config.threat_benchmarks.fkdr || Number(stats.stars) >= config.threat_benchmarks.stars ||
+                    this.guildList.has(stats.guild.toLowerCase())
 
                 this.statCache.set(username, { msg, isThreat })
 
@@ -313,6 +316,7 @@ class HyProxy {
             const data = await response.json()
             return { uuid: data.id, username: data.name }
         } catch (err) {
+            this.log(err)
             return null
         }
     }
@@ -330,17 +334,19 @@ class HyProxy {
             const bw = data.player.stats?.Bedwars
             if (!bw) return null
 
-            const stars = data.player.achievements.bedwars_level || 0
+            const res = {}
+
+            res.stars = data.player.achievements.bedwars_level || 0
             const finalKills = bw.final_kills_bedwars || 0
             const finalDeaths = bw.final_deaths_bedwars || 1
-            const fkdr = (finalKills / finalDeaths).toFixed(2)
+            res.fkdr = (finalKills / finalDeaths).toFixed(2)
 
             const plusplus = data.player.monthlyPackageRank && data.player.monthlyPackageRank === "SUPERSTAR"
-            const rank = plusplus ? "MVP_PLUS_PLUS" : (data.player.packageRank || data.player.newPackageRank || "NONE")
+            res.rank = plusplus ? "MVP_PLUS_PLUS" : (data.player.packageRank || data.player.newPackageRank || "NONE")
 
             const items = bw.slumber?.quest?.item || {}
 
-            const slumber = {
+            res.slumber = {
                 "Bed Sheet": items.slumber_item_bed_sheets || 0,
                 "Ender Dust": items.slumber_item_ender_dust || 0,
                 "Iron Nugget": items.slumber_item_iron_nugget || 0,
@@ -355,8 +361,32 @@ class HyProxy {
                 "Nether Star": items.slumber_item_nether_star || 0,
             }
 
-            return { stars, fkdr, rank, slumber }
+            const guild = await this.getGuild(uuid)
+
+            res.guild = guild || "No Guild"
+
+            return res
         } catch (err) {
+            this.log(err)
+            return null
+        }
+    }
+
+    async getGuild(uuid) {
+        try {
+            const response = await fetch(`https://api.hypixel.net/v2/guild?key=${process.env.HYPIXEL_API_KEY}&player=${uuid}`)
+            if (!response.ok) return null
+            const data = await response.json()
+            if (!data.success) {
+                this.log(`Error fetching API: ${data.cause}`)
+                return null
+            }
+
+            if (!data.guild) return null
+
+            return data.guild.name
+        } catch (err) {
+            this.log(err)
             return null
         }
     }

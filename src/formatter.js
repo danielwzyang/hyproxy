@@ -9,7 +9,7 @@ function log(message) {
 }
 
 function formatStatsMessage(username, stats, benchmarks) {
-    return `${getRankColor(stats.rank)}${username}: ${getColoredStar(stats.stars)} §7| ${getColoredFKDR(stats.fkdr, benchmarks)} FKDR`
+    return `${getRankColor(stats.rank)}${username}: ${getColoredStar(stats.stars)} §7| ${getColoredFKDR(stats.fkdr, benchmarks)} FKDR §7| §2${stats.guild}`
 }
 
 function getRankColor(rank) {

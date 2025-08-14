@@ -316,7 +316,7 @@ class HyProxy {
             const data = await response.json()
             return { uuid: data.id, username: data.name }
         } catch (err) {
-            this.log(err)
+            formatter.log(err)
             return null
         }
     }
@@ -327,7 +327,7 @@ class HyProxy {
             if (!response.ok) return null
             const data = await response.json()
             if (!data.success || !data.player) {
-                this.log(`Error fetching API: ${data.cause}`)
+                formatter.log(`Error fetching API: ${data.cause}`)
                 return null
             }
 
@@ -367,7 +367,7 @@ class HyProxy {
 
             return res
         } catch (err) {
-            this.log(err)
+            formatter.log(err)
             return null
         }
     }
@@ -378,7 +378,7 @@ class HyProxy {
             if (!response.ok) return null
             const data = await response.json()
             if (!data.success) {
-                this.log(`Error fetching API: ${data.cause}`)
+                formatter.log(`Error fetching API: ${data.cause}`)
                 return null
             }
 
@@ -386,7 +386,7 @@ class HyProxy {
 
             return data.guild.name
         } catch (err) {
-            this.log(err)
+            formatter.log(err)
             return null
         }
     }

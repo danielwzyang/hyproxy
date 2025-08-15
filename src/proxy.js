@@ -286,7 +286,7 @@ class HyProxy {
                 const msg = formatter.formatStatsMessage(username, stats, config.fkdr_benchmarks)
 
                 const isThreat = Number(stats.fkdr) >= config.threat_benchmarks.fkdr || Number(stats.stars) >= config.threat_benchmarks.stars ||
-                    this.guildList.has(stats.guild.toLowerCase())
+                    (stats.guild && this.guildList.has(stats.guild.toLowerCase()))
 
                 this.statCache.set(username, { msg, isThreat })
 
@@ -361,9 +361,7 @@ class HyProxy {
                 "Nether Star": items.slumber_item_nether_star || 0,
             }
 
-            const guild = await this.getGuild(uuid)
-
-            res.guild = guild || "No Guild"
+            res.guild = await this.getGuild(uuid)
 
             return res
         } catch (err) {

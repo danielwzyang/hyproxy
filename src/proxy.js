@@ -134,17 +134,17 @@ class HyProxy {
             }
 
             // bedwars game has started
-            if (rawMessage.trim() === "to access powerful upgrades.") {
+            if (rawMessage.trim() === "to access powerful upgrades.")
                 if (config.auto_who)
                     this.target.write("chat", { message: "/who" })
 
-                this.statCache.clear()
-            }
-
             // bedwars game has ended
-            if (rawMessage.trim().startsWith("1st Killer - "))
+            if (rawMessage.trim().startsWith("1st Killer - ")) {
+                this.statCache.clear()
+
                 if (config.slumber_alerts)
                     this.slumberAlert()
+            }
         } catch (err) {
             formatter.log(`Error processing chat packet: ${err}`)
         }

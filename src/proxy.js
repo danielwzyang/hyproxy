@@ -133,13 +133,15 @@ class HyProxy {
                 })
             }
 
-            // bedwars game has started
-            if (rawMessage.trim() === "to access powerful upgrades.")
+            const trimmed = rawMessage.trim()
+
+            // bedwars game has started or bedwars duel
+            if (trimmed === "to access powerful upgrades." || trimmed === "Destroy the enemy bed and then eliminate them!")
                 if (config.auto_who)
                     this.target.write("chat", { message: "/who" })
 
             // bedwars game has ended
-            if (rawMessage.trim().startsWith("1st Killer - ")) {
+            if (trimmed.startsWith("1st Killer - ")) {
                 this.statCache.clear()
 
                 if (config.slumber_alerts)
